@@ -15,6 +15,12 @@
       --sand: #e8e1d7;
       --accent: #8d503d;
       --line: #e8e4dd;
+      --office-bg: #dceeff;
+      --office-ink: #1d5f99;
+      --home-bg: #fff0dc;
+      --home-ink: #9a5410;
+      --off-bg: #e7e7e7;
+      --off-ink: #595959;
     }
 
     * {
@@ -207,6 +213,48 @@
       background: #fbfaf8;
     }
 
+    .day-office {
+      background: var(--office-bg);
+    }
+
+    .day-office .day-number {
+      color: var(--office-ink);
+    }
+
+    .day-office .day-input,
+    .legend-swatch-office {
+      background: var(--office-bg);
+    }
+
+    .day-home {
+      background: var(--home-bg);
+    }
+
+    .day-home .day-number {
+      color: var(--home-ink);
+    }
+
+    .day-home .day-input,
+    .legend-swatch-home {
+      background: var(--home-bg);
+    }
+
+    .day-weekend,
+    .day-off {
+      background: var(--off-bg);
+    }
+
+    .day-weekend .day-number,
+    .day-off .day-number {
+      color: var(--off-ink);
+    }
+
+    .day-weekend .day-input,
+    .day-off .day-input,
+    .legend-swatch-off {
+      background: var(--off-bg);
+    }
+
     .day-number {
       display: block;
       margin-bottom: 0.65rem;
@@ -242,6 +290,27 @@
       color: var(--muted);
       font-size: 0.8rem;
       line-height: 1.5;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1.25rem;
+      margin-top: 1.25rem;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    .legend-swatch {
+      width: 0.85rem;
+      height: 0.85rem;
+      border: 1px solid rgb(37 35 31 / 12%);
     }
 
     footer {
@@ -357,7 +426,7 @@
             <span class="metric-value" id="office-days">0</span>
           </div>
           <div class="metric">
-            <span class="metric-label">Working days</span>
+            <span class="metric-label">Office + home days</span>
             <span class="metric-value" id="working-days">0</span>
           </div>
           <div class="metric metric-rate">
@@ -368,16 +437,21 @@
       </div>
 
       <div class="weekdays" aria-hidden="true">
-        <span class="weekday">Sun</span>
         <span class="weekday">Mon</span>
         <span class="weekday">Tue</span>
         <span class="weekday">Wed</span>
         <span class="weekday">Thu</span>
         <span class="weekday">Fri</span>
         <span class="weekday">Sat</span>
+        <span class="weekday">Sun</span>
       </div>
       <div class="calendar-grid" id="calendar-grid" aria-live="polite"></div>
-      <p class="calendar-note" id="calendar-note" role="status">Weekdays count as working days by default. Any labeled day counts as a working day unless its note is "not working day".</p>
+      <div class="legend" aria-label="Calendar color legend">
+        <span class="legend-item"><span class="legend-swatch legend-swatch-office" aria-hidden="true"></span>Office</span>
+        <span class="legend-item"><span class="legend-swatch legend-swatch-home" aria-hidden="true"></span>Home</span>
+        <span class="legend-item"><span class="legend-swatch legend-swatch-off" aria-hidden="true"></span>Weekend, leave, or public holiday</span>
+      </div>
+      <p class="calendar-note" id="calendar-note" role="status">Office rate = office days ÷ (office days + home days). Weekends, leave, public holidays, and other notes are excluded.</p>
     </section>
   </main>
   <footer>
@@ -439,48 +513,63 @@
     function saveEntries(year, month, entries) {
       try {
         localStorage.setItem(storageKey(year, month), JSON.stringify(entries));
-        calendarNote.textContent = 'Saved in this browser. Weekdays count as working days by default. Any labeled day counts as a working day unless its note is "not working day".';
+        calendarNote.textContent = "Saved in this browser. Office rate = office days ÷ (office days + home days).";
       } catch (error) {
         calendarNote.textContent = `Your changes could not be saved in this browser: ${error.message}`;
       }
     }
 
-    function isWorkingDay(note, weekday) {
+    function dayType(note, weekday) {
       const normalized = note.trim().toLowerCase();
-      if (normalized === "not working day") {
-        return false;
+      if (normalized === "office") {
+        return "office";
       }
-      return normalized.length > 0 || (weekday >= 1 && weekday <= 5);
+      if (normalized === "home") {
+        return "home";
+      }
+      if (
+        normalized === "sick" ||
+        normalized === "sick leave" ||
+        normalized === "annual" ||
+        normalized === "annual leave" ||
+        normalized === "public holiday" ||
+        normalized === "not working day"
+      ) {
+        return "off";
+      }
+      if (weekday === 0 || weekday === 6) {
+        return "weekend";
+      }
+      return "";
     }
 
     function updateSummary() {
       let officeDays = 0;
-      let workingDays = 0;
+      let officeAndHomeDays = 0;
 
       calendarGrid.querySelectorAll(".day-input").forEach((input) => {
         const note = input.value;
-        const day = Number(input.dataset.day);
-        const weekday = new Date(Number(yearSelect.value), Number(monthSelect.value), day).getDay();
-        if (note.trim().toLowerCase() === "office") {
+        const type = input.closest(".day").dataset.dayType;
+        if (type === "office") {
           officeDays += 1;
         }
-        if (isWorkingDay(note, weekday)) {
-          workingDays += 1;
+        if (type === "office" || type === "home") {
+          officeAndHomeDays += 1;
         }
       });
 
       document.querySelector("#office-days").textContent = officeDays;
-      document.querySelector("#working-days").textContent = workingDays;
-      document.querySelector("#office-rate").textContent = workingDays === 0
+      document.querySelector("#working-days").textContent = officeAndHomeDays;
+      document.querySelector("#office-rate").textContent = officeAndHomeDays === 0
         ? "N/A"
-        : `${Math.round((officeDays / workingDays) * 100)}%`;
+        : `${Math.round((officeDays / officeAndHomeDays) * 100)}%`;
     }
 
     function renderCalendar() {
       const year = Number(yearSelect.value);
       const month = Number(monthSelect.value);
       const entries = loadEntries(year, month);
-      const firstWeekday = new Date(year, month, 1).getDay();
+      const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       calendarGrid.replaceChildren();
 
@@ -494,6 +583,13 @@
       for (let day = 1; day <= daysInMonth; day += 1) {
         const cell = document.createElement("div");
         cell.className = "day";
+        const weekday = new Date(year, month, day).getDay();
+        const initialNote = typeof entries[day] === "string" ? entries[day] : "";
+        const initialType = dayType(initialNote, weekday);
+        cell.dataset.dayType = initialType;
+        if (initialType) {
+          cell.classList.add(`day-${initialType}`);
+        }
 
         const number = document.createElement("span");
         number.className = "day-number";
@@ -503,12 +599,18 @@
         input.className = "day-input";
         input.type = "text";
         input.maxLength = 80;
-        input.value = typeof entries[day] === "string" ? entries[day] : "";
+        input.value = initialNote;
         input.placeholder = "Add a note";
         input.setAttribute("aria-label", `${monthNames[month]} ${day}, ${year}`);
         input.dataset.day = day;
         input.addEventListener("input", () => {
           entries[day] = input.value;
+          const type = dayType(input.value, weekday);
+          cell.dataset.dayType = type;
+          cell.classList.remove("day-office", "day-home", "day-weekend", "day-off");
+          if (type) {
+            cell.classList.add(`day-${type}`);
+          }
           saveEntries(year, month, entries);
           updateSummary();
         });
