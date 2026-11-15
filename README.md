@@ -1,6 +1,6 @@
 # FashionHub
 
-FashionHub is a simple, responsive landing page for a fashion storefront.
+FashionHub is a simple, responsive landing page for a fashion storefront, with a personal office calendar.
 
 ## Live site
 
@@ -14,3 +14,4 @@ Open `index.html` in a web browser. The page is static and does not require a bu
 
 - `index.html` — the FashionHub storefront entry page.
 - `lookbook/index.html` — a fashion lookbook with outfit inspiration.
+- `office-calendar/index.html` — a monthly office calendar with per-day notes and an office-rate summary. Entries are saved in the browser's local storage.
